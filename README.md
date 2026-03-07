@@ -1,8 +1,8 @@
 # VendingManager - учёт для вендингового бизнеса
-<img src="1shot.png" alt="Главная страница" width="200" height="300">
-<img src="2shot.png" alt="Детали точки" width="200" height="300">
-<img src="3shot.png" alt="Страница с аналитикой" width="200" height="300">
-<img src="4shot.png" alt="Остатки товаров" width="200" height="300">
+<img src="1shot.png" alt="Главная страница" width="200" height="400">
+<img src="2shot.png" alt="Детали точки" width="200" height="400">
+<img src="3shot.png" alt="Страница с аналитикой" width="200" height="400">
+<img src="4shot.png" alt="Остатки товаров" width="200" height="400">
 Небольшое приложение на основе фреймворка Flutter, адаптированного под Python, для простого управления вендинговым бизнесом
 
 ## 🚀 Стек и возможности
