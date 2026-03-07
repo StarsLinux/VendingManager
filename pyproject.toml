@@ -1,0 +1,17 @@
+[project]
+name = "vending_manager"
+version = "1.0.0"
+description = ""
+requires-python = ">=3.9"
+authors = [
+    { name = "Denis" }
+]
+dependencies = ["flet==0.28.3", "beautifulsoup4==4.14.2", "Requests==2.32.5"]
+
+[tool.flet]
+org = "com.vend_solutions"
+product = "VendingManager"
+company = "VendSolutions"
+copyright = "Copyright (C) 2026 by VendSolutions"
+app.icon = "./assets/data/favicon.png"
+app.module = "app"

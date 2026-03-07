@@ -1,0 +1,36 @@
+[
+  {
+    "links": [
+      "wizardgum.ru",
+      "gumtoy.ru"
+    ],
+    "notes": ""
+  },
+  [
+    {
+      "type": "Жвачки",
+      "quantity": 2,
+      "qtype": "кор."
+    },
+    {
+      "type": "Игрушки маленькие",
+      "quantity": 3,
+      "qtype": "+ уп."
+    },
+    {
+      "type": "Игрушки большие",
+      "quantity": 1,
+      "qtype": "уп."
+    },
+    {
+      "type": "Мячи-прыгуны",
+      "quantity": 1,
+      "qtype": "уп."
+    },
+    {
+      "type": "Бахилы",
+      "quantity": 5,
+      "qtype": "кор."
+    }
+  ]
+]

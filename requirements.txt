@@ -1,0 +1,3 @@
+beautifulsoup4==4.14.2
+flet==0.28.3
+Requests==2.32.5
