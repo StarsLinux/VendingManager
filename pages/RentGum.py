@@ -242,6 +242,7 @@ class GumApp():
 
     def build(self):
         self.page.floating_action_button = None
+        self.page.appbar = None
         self.update_points_list()
         return ft.Container(content=ft.Column([
             ft.Row([

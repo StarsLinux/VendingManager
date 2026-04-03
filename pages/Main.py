@@ -1057,6 +1057,7 @@ class MainPage:
     def build(self):
         # Панель поиска и фильтров
         self.page.floating_action_button = self.get_fab()
+        self.page.appbar = None
         search_row = ft.Row([
             self.search_field,
             self.sort_button

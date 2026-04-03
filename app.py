@@ -18,12 +18,16 @@ def setup(page: ft.Page):
             main = MainPage(page)
             page.add(main.build())
             page.floating_action_button = main.get_fab()
-        else:
-            dests = {
-                1: Analytics(page).build(),
-                2: GumApp(page).build()
-            }
-            page.add(dests.get(e.control.selected_index))
+        elif e.control.selected_index == 1:
+            main = Analytics(page)
+            page.add(main.build())
+            page.appbar = ft.AppBar(
+                title=ft.Text(value="Аналитика", size=22, weight=ft.FontWeight.BOLD),
+                actions=[main.build_menu()]
+            )
+        elif e.control.selected_index == 2:
+            main = GumApp(page)
+            page.add(main.build())
 
         page.update()
     

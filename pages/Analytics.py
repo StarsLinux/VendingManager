@@ -4,103 +4,75 @@ import json
 import os
 import utils as u
 
-# Модели данных
 class VendingMachine:
     def __init__(self, machine_type, count=1, subtypes=None):
         self.type = machine_type
         self.count = count
         self.subtypes = subtypes or []
-    
+
     def to_dict(self):
         return {
             "type": self.type,
             "count": self.count,
             "subtypes": self.subtypes
         }
-    
+
     @classmethod
     def from_dict(cls, data):
         return cls(data["type"], data.get("count", 1), data.get("subtypes", []))
-    
-    def get_icon(self):
-        icons = {
-            "Трёхножка": ft.Icons.LOCAL_PLAY,
-            "Хватай-ка": ft.Icons.CATCHING_POKEMON,
-            "Кофеаппарат": ft.Icons.LOCAL_CAFE,
-            "Бахилы": ft.Icons.SNOWSHOEING
-        }
-        return icons.get(self.type, ft.Icons.BUSINESS)
+
 
 class Note:
     def __init__(self, text, photos, date=None):
         self.text = text
-        self.photos = photos if photos is not None else []
+        self.photos = photos if photos else []
         self.date = date or datetime.now()
-    
+
     def to_dict(self):
         return {
             "text": self.text,
             "photos": self.photos,
             "date": self.date.isoformat()
         }
-    
+
     @classmethod
     def from_dict(cls, data):
         date = datetime.fromisoformat(data["date"]) if "date" in data else datetime.now()
-        return cls(data["text"], data.get("photos", []), date)
+        return cls(data.get("text", ""), data.get("photos", []), date)
+
 
 class VendingPoint:
-    def __init__(self, name, address, machines, status="Работает и заполнен", map_link="", phones=[]):
+    def __init__(self, name, address, machines, status="Работает и заполнен", map_link="", phones=None):
         self.name = name
         self.address = address
         self.machines = machines
         self.status = status
         self.map_link = map_link
-        self.phones = phones
+        self.phones = phones or []
         self.notes = []
-        self.id = hash(f"{name}{address}")
-    
-    def add_note(self, note):
-        self.notes.append(note)
-    
-    def days_since_last_note(self):
-        if not self.notes:
-            return "∞"
-        last_note = max(self.notes, key=lambda x: x.date)
-        delta = u.gen_activity_date(last_note.date)
-        return delta
-    
-    def get_status_color(self):
-        colors = {
-            "Работает и заполнен": ft.Colors.GREEN,
-            "Работает и не заполнен": ft.Colors.ORANGE,
-            "Сломан": ft.Colors.RED
-        }
-        return colors.get(self.status, ft.Colors.GREY)
-    
+
     def to_dict(self):
         return {
             "name": self.name,
             "address": self.address,
             "map_link": self.map_link,
             "status": self.status,
-            "machines": [machine.to_dict() for machine in self.machines],
+            "machines": [m.to_dict() for m in self.machines],
             "phones": self.phones,
-            "notes": [note.to_dict() for note in self.notes]
+            "notes": [n.to_dict() for n in self.notes]
         }
-    
+
     @classmethod
     def from_dict(cls, data):
         point = cls(
             data["name"],
             data["address"],
-            [VendingMachine.from_dict(machine) for machine in data["machines"]],
+            [VendingMachine.from_dict(m) for m in data.get("machines", [])],
             data.get("status", "Работает и заполнен"),
             data.get("map_link", ""),
-            data["phones"]
+            data.get("phones", [])
         )
-        point.notes = [Note.from_dict(note) for note in data.get("notes", [])]
-        point.phones = data["phones"]
+        point.notes = [Note.from_dict(n) for n in data.get("notes", [])]
         return point
 
 class Analytics:
@@ -109,58 +81,102 @@ class Analytics:
         self.data_file = "./storage/data/vending_data.json"
         self.points = self.load_data()
 
-    def load_data(self):
-        """Загружает данные из JSON-файла и очищает несуществующие заметки"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                # Создаем временный список для хранения очищенных данных
-                cleaned_data = []
-                removed_notes = 0
-                
-                for point_data in data:
-                    # Очищаем заметки для каждой точки
-                    cleaned_notes = []
-                    
-                    for note in point_data['notes']:
-                        # Проверяем существование всех фото в заметке
-                        valid_photos = [
-                            photo for photo in note['photos']
-                            if os.path.exists(photo) and os.path.isfile(photo)
-                        ]
-                        
-                        activity_date = u.gen_activity_date(datetime.fromisoformat(note["date"]) if note["date"] != "" else datetime.now())
-                        
-                        # Если есть хотя бы одно валидное фото или текст не пустой - сохраняем заметку
-                        if any(substring in activity_date for substring in ["год", "года", "лет"]):
-                            removed_notes += 1
-                        else:
-                            if valid_photos or note['text'].strip():
-                                # Обновляем список фото в заметке
-                                note['photos'] = valid_photos
-                                cleaned_notes.append(note)
-                            else:
-                                removed_notes += 1
-                    
-                    # Обновляем список заметок в точке
-                    point_data['notes'] = cleaned_notes
+        # FilePicker
+        self.file_picker = ft.FilePicker(on_result=self.on_file_selected)
+        self.page.overlay.append(self.file_picker)
 
-                    cleaned_data.append(point_data)
-                
-                # Сохраняем очищенные данные обратно в файл
-                with open(self.data_file, 'w', encoding='utf-8') as f:
-                    json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-                
-                # Конвертируем очищенные данные в объекты
-                return [VendingPoint.from_dict(point_data) for point_data in cleaned_data]
-                
-            except Exception as e:
-                print(f"Ошибка загрузки данных: {e}")
-                return []
-        
-        return "{}"
+        self.export_picker = ft.FilePicker(on_result=self.on_export_selected)
+        self.page.overlay.append(self.export_picker)
+
+        self.pending_action = None
+
+    def load_data(self):
+        if not os.path.exists(self.data_file):
+            return []
+
+        try:
+            with open(self.data_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            return [VendingPoint.from_dict(p) for p in data]
+
+        except Exception as e:
+            print("Ошибка загрузки:", e)
+            return []
+
+    def save_data(self):
+        with open(self.data_file, "w", encoding="utf-8") as f:
+            json.dump([p.to_dict() for p in self.points], f, ensure_ascii=False, indent=2)
+
+    def validate_json(self, data):
+        if not isinstance(data, list):
+            return False
+
+        required_keys = {"name", "address", "machines"}
+
+        for point in data:
+            if not all(k in point for k in required_keys):
+                return False
+
+        return True
+
+    def on_file_selected(self, e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+
+        path = e.files[0].path
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if not self.validate_json(data):
+                raise ValueError("Неверная структура JSON")
+
+            self.points = [VendingPoint.from_dict(p) for p in data]
+            self.save_data()
+
+            self.page.snack_bar = ft.SnackBar(ft.Text("Импорт успешно выполнен"))
+            self.page.snack_bar.open = True
+            self.page.update()
+
+        except Exception as ex:
+            self.page.snack_bar = ft.SnackBar(ft.Text(f"Ошибка импорта: {ex}"))
+            self.page.snack_bar.open = True
+            self.page.update()
+
+    def on_export_selected(self, e: ft.FilePickerResultEvent):
+        if not e.path:
+            return
+
+        try:
+            with open(e.path, "w", encoding="utf-8") as f:
+                json.dump([p.to_dict() for p in self.points], f, ensure_ascii=False, indent=2)
+
+            self.page.snack_bar = ft.SnackBar(ft.Text("Экспорт выполнен"))
+            self.page.snack_bar.open = True
+            self.page.update()
+
+        except Exception as ex:
+            self.page.snack_bar = ft.SnackBar(ft.Text(f"Ошибка экспорта: {ex}"))
+            self.page.snack_bar.open = True
+            self.page.update()
+
+    def open_import(self, e):
+        self.pending_action = "import"
+        self.file_picker.pick_files(allow_multiple=False)
+
+    def open_export(self, e):
+        self.pending_action = "export"
+        self.export_picker.save_file(file_name="vending_data.json")
+
+    def build_menu(self):
+        return ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(text="Импорт JSON", on_click=self.open_import),
+                ft.PopupMenuItem(text="Экспорт JSON", on_click=self.open_export),
+            ]
+        )
 
     def build_analytics(self):
         all_count = 0
@@ -267,18 +283,19 @@ class Analytics:
                     ))
 
         return types_col
-    
+
     def build(self):
+        self.page.appbar = ft.AppBar(
+            ft.Text(value="Аналитика", size=22, weight=ft.FontWeight.BOLD),
+            actions=[self.build_menu()]
+        )
         self.page.floating_action_button = None
         analytics = self.build_analytics()
         types = self.get_types()
         return ft.Container(
             content=ft.Column(
                 controls=[
-                    ft.Text(value="Аналитика", size=22, weight=ft.FontWeight.BOLD),
-                    ft.Text(value="Точки", size=20, weight=ft.FontWeight.BOLD),
                     analytics,
-                    ft.Text(value="Типы автоматов", size=20, weight=ft.FontWeight.BOLD),
                     types
                 ],
                 scroll=ft.ScrollMode.AUTO,
