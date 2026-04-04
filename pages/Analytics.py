@@ -173,8 +173,8 @@ class Analytics:
     def build_menu(self):
         return ft.PopupMenuButton(
             items=[
-                ft.PopupMenuItem(text="Импорт JSON", on_click=self.open_import),
-                ft.PopupMenuItem(text="Экспорт JSON", on_click=self.open_export),
+                ft.PopupMenuItem(text="Импорт точек", on_click=self.open_import),
+                ft.PopupMenuItem(text="Экспорт точек", on_click=self.open_export),
             ]
         )
 

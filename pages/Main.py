@@ -134,6 +134,10 @@ class MainPage:
         )
 
         self.attached_photos = []
+        self.editing_note = None
+        self.notes_list = None
+        self.render_notes = None
+        self.linked_photos = None
         self.update_points_list()
 
     def load_data(self):
@@ -182,7 +186,7 @@ class MainPage:
                 print(f"Ошибка загрузки данных: {e}")
                 return []
         
-        return "{}"
+        return []
 
     def save_data(self):
         """Сохраняет данные в JSON-файл"""
@@ -408,6 +412,20 @@ class MainPage:
         
         self.page.open(confirm_dialog)
         self.page.update()
+    
+    def edit_note(self, note: Note):
+        self.editing_note = note
+
+        self.new_note_field.value = note.text
+
+        self.attached_photos.clear()
+        self.attached_photos.extend(note.photos)
+
+        if self.load_linked_images and self.linked_photos:
+            self.load_linked_images(self.linked_photos)
+
+        self.load_linked_images(self.linked_photos)
+        self.page.update()
 
     def delete_note(self, point: VendingPoint, note: Note):
         """Удаляет заметку из точки и обновляет JSON-файл"""
@@ -415,17 +433,13 @@ class MainPage:
             # Удаляем заметку из списка точки
             if note in point.notes:
                 point.notes.remove(note)
-                
-                # Обновляем данные в памяти
                 self.save_data()
-                
-               # Закрываем текущий диалог
-                self.close_dialog()
-                
-                # Переоткрываем диалог с обновленными данными
-                self.show_point_details(point)
+
+                if self.render_notes:
+                    self.render_notes()
+
+                self.page.update()
                 self.show_snackbar("Примечание удалено")
-                
             else:
                 self.show_snackbar("Примечание не найдено")
                 
@@ -612,6 +626,8 @@ class MainPage:
 
     def build_point_details(self, point: VendingPoint):
         """Создает содержимое для диалога с информацией о точке"""
+
+        self.notes_list = ft.Column(width=200)
         
         # Кликабельный адрес с ссылкой на карту
         address_row = ft.Row([
@@ -690,64 +706,77 @@ class MainPage:
 
         self.attached_photos = []
 
-        note_imgs = ft.Row(expand=1, wrap=False, scroll=ft.ScrollMode.ALWAYS, visible=False)
-
         linked_photos = ft.Row(expand=0, wrap=False, scroll=ft.ScrollMode.ALWAYS, visible=False)
+        self.linked_photos = linked_photos
         
         def load_linked_images(image_obj, urls=self.attached_photos):
             image_obj.controls.clear()
-            if len(urls) > 0:
+
+            def remove_photo(path):
+                if path in self.attached_photos:
+                    self.attached_photos.remove(path)
+                    load_linked_images(image_obj)
+
+            if urls:
                 for image_url in urls:
-                    if image_url:
-                        image_obj.controls.append(
-                            ft.Image(
+                    image_obj.controls.append(
+                        ft.Container(
+                            content=ft.Image(
                                 src=image_url,
                                 height=150,
                                 fit=ft.ImageFit.COVER,
-                                repeat=ft.ImageRepeat.NO_REPEAT,
                                 border_radius=ft.border_radius.all(10),
-                            )
+                            ),
+                            on_click=lambda e, p=image_url: remove_photo(p)
                         )
-                        image_obj.visible = True
-                    else:
-                        image_obj.visible = False
-            
-            
+                    )
+                image_obj.visible = True
+            else:
+                image_obj.visible = False
+
             self.page.update()
+
+        self.load_linked_images = load_linked_images
 
         def clear_linked_photos():
             linked_photos.controls.clear()
             linked_photos.visible = False
         
+        self.clear_linked_photos = clear_linked_photos
+        
         load_linked_images(linked_photos)
         
         def add_note(e):
-            if self.new_note_field.value.strip():
-                # Создаем копию списка фотографий, чтобы избежать проблем с ссылками
-                photos_copy = self.attached_photos.copy()
-                
-                # Добавляем заметку с копией списка фотографий
-                point.add_note(Note(self.new_note_field.value, photos_copy))
-                
-                # Очищаем связанные фото
-                self.attached_photos.clear()
-                clear_linked_photos()
-                self.new_note_field.value = ""
-                
-                # Сохраняем данные в JSON
-                self.save_data()
-                
-                # Обновляем интерфейс
-                self.close_dialog()
-                self.update_points_list()
-                self.page.update()
-                
-                # Переоткрываем диалог для отображения изменений
-                self.show_point_details(point)
-                self.show_snackbar(f"Примечание добавлено к {point.name}")
+            text = self.new_note_field.value.strip()
+
+            if not text and not self.attached_photos:
+                return
+
+            if self.editing_note:
+                self.editing_note.text = text
+                self.editing_note.photos = self.attached_photos.copy()
+
+                self.editing_note = None
+                message = "Примечание обновлено"
+            else:
+                point.add_note(
+                    Note(text, self.attached_photos.copy())
+                )
+                message = f"Примечание добавлено к {point.name}"
+
+            self.attached_photos.clear()
+            clear_linked_photos()
+            self.new_note_field.value = ""
+
+            self.save_data()
+
+            if self.render_notes:
+                self.render_notes()
+
+            self.page.update()
+            self.show_snackbar(message)
 
         def attach_photo(e):
-            print(e.files)
             if e.files:
                 for f in e.files:
                     if os.path.exists(f.path) and os.path.isfile(f.path):
@@ -757,35 +786,32 @@ class MainPage:
                         # Обновляем отображение прикрепленных фото
                         load_linked_images(linked_photos)
 
-        # Список существующих примечаний
-        notes_list = ft.Column(scroll=ft.ScrollMode.ALWAYS, height=200)
-        sorted_notes = sorted(point.notes, key=lambda x: x.date, reverse=True)
-        if len(sorted_notes) == 0 or not sorted_notes:
-            notes_list.visible = False
-        else:
+        def render_notes():
+            self.notes_list.controls.clear()
+
+            sorted_notes = sorted(point.notes, key=lambda x: x.date, reverse=True)
+
+            if not sorted_notes:
+                self.notes_list.visible = False
+                return
+
             for note in sorted_notes:
                 note_imgs = ft.Row(expand=1, wrap=False, scroll=ft.ScrollMode.ALWAYS, visible=False)
 
                 for image_url in note.photos:
-                    if image_url:
-                        note_imgs.controls.append(
-                            ft.Container(content=ft.Image(
+                    note_imgs.controls.append(
+                        ft.Container(
+                            content=ft.Image(
                                 src=image_url,
                                 height=100,
                                 fit=ft.ImageFit.COVER,
-                                repeat=ft.ImageRepeat.NO_REPEAT,
                                 border_radius=ft.border_radius.all(10),
                             ),
-                            on_click=lambda e, url=image_url: self.open_image_in_gallery(url))
+                            on_click=lambda e, url=image_url: self.open_image_in_gallery(url)
                         )
-                        note_imgs.visible = True
-                    else:
-                        note_imgs.visible = False
-                
-                # Добавляем функцию удаления для каждой заметки
-                def create_delete_handler(n):
-                    return lambda e: self.delete_note(point, n)
-                
+                    )
+                    note_imgs.visible = True
+
                 note_card = ft.Card(
                     content=ft.Container(
                         content=ft.Column([
@@ -796,21 +822,29 @@ class MainPage:
                                 size=10,
                                 color=ft.Colors.GREY
                             ),
-                            # Добавляем кнопку удаления
-                            ft.IconButton(
-                                ft.Icons.DELETE,
-                                tooltip="Удалить заметку",
-                                icon_color=ft.Colors.RED,
-                                on_click=create_delete_handler(note)
-                            )
+                            ft.Row([
+                                ft.IconButton(
+                                    ft.Icons.DELETE,
+                                    icon_color=ft.Colors.RED,
+                                    on_click=lambda e, n=note: self.delete_note(point, n)
+                                ),
+                                ft.IconButton(
+                                    ft.Icons.EDIT,
+                                    icon_color=ft.Colors.BLUE,
+                                    on_click=lambda e, n=note: self.edit_note(n)
+                                ),
+                            ])
                         ]),
                         padding=10
-                    ),
-                    elevation=1,
-                    margin=ft.margin.only(bottom=5)
+                    )
                 )
-                notes_list.controls.append(note_card)
-            notes_list.visible = True
+
+                self.notes_list.controls.append(note_card)
+
+            self.notes_list.visible = True
+        
+        self.render_notes = render_notes
+        render_notes()
 
         file_picker = ft.FilePicker(on_result=attach_photo)
         self.page.overlay.append(file_picker)
@@ -843,7 +877,7 @@ class MainPage:
             ]),
             ft.Divider(),
             ft.Text("История примечаний:", weight="bold"),
-            notes_list
+            self.notes_list
         ], scroll=ft.ScrollMode.AUTO)
 
     def change_status(self, point: VendingPoint, new_status):

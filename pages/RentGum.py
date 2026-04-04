@@ -153,7 +153,6 @@ class GumApp():
             
             self.data[1][product] = new_product
             self.save_data()
-            print(self.data)
             self.update_points_list()
             self.page.close(self.edit_product_dialog)
 
