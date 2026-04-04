@@ -56,7 +56,7 @@ class GumApp():
         self.products_column.controls.append(ft.Card(content=ft.Container(content=ft.Column([
                             ft.Row([
                                 ft.Column([
-                                    ft.Text(value=data['type'], weight="bold", size=14),
+                                    ft.Text(value=data['type'], weight="bold", size=15),
                                     ft.Text(value=f"{data['quantity']} {data['qtype']}", size=12, color=ft.Colors.GREY)
                                 ]),
                                 ft.Row([

@@ -78,6 +78,11 @@ class VendingPoint:
             "Сломан": ft.Colors.RED
         }
         return colors.get(self.status, ft.Colors.GREY)
+
+    def get_last_note_date(self):
+        if not self.notes:
+            return datetime.min
+        return max(self.notes, key=lambda x: x.date).date
     
     def to_dict(self):
         return {
@@ -221,20 +226,16 @@ class MainPage:
                 "Работает и не заполнен": 1,
                 "Сломан": 2
             }
-            self.filtered_points.sort(key=lambda x: order.get(x.status, 3))
+            self.filtered_points.sort(key=lambda x: order.get(x.status, 3), reverse=True)
 
         elif mode == "date_asc":
             self.filtered_points.sort(
-                key=lambda x: x.days_since_last_note()
-                if isinstance(x.days_since_last_note(), int)
-                else 999
+                key=lambda x: x.get_last_note_date()
             )
 
         elif mode == "date_desc":
             self.filtered_points.sort(
-                key=lambda x: x.days_since_last_note()
-                if isinstance(x.days_since_last_note(), int)
-                else 999,
+                key=lambda x: x.get_last_note_date(),
                 reverse=True
             )
 
@@ -428,23 +429,48 @@ class MainPage:
         self.page.update()
 
     def delete_note(self, point: VendingPoint, note: Note):
-        """Удаляет заметку из точки и обновляет JSON-файл"""
-        try:
-            # Удаляем заметку из списка точки
-            if note in point.notes:
-                point.notes.remove(note)
-                self.save_data()
+        def confirm_delete(e):
+            """Удаляет заметку из точки и обновляет JSON-файл"""
+            try:
+                # Удаляем заметку из списка точки
+                if note in point.notes:
+                    point.notes.remove(note)
+                    self.save_data()
 
-                if self.render_notes:
-                    self.render_notes()
+                    if self.render_notes:
+                        self.render_notes()
 
-                self.page.update()
-                self.show_snackbar("Примечание удалено")
-            else:
-                self.show_snackbar("Примечание не найдено")
-                
-        except Exception as e:
-            self.show_snackbar(f"Ошибка при удалении: {str(e)}")
+                    self.page.update()
+                    self.show_snackbar("Примечание удалено")
+                else:
+                    self.show_snackbar("Примечание не найдено")
+                    
+            except Exception as e:
+                self.show_snackbar(f"Ошибка при удалении: {str(e)}")
+            
+            confirm_dialog.open = False
+            self.page.update()
+
+        def cancel_delete(e):
+            confirm_dialog.open = False
+            self.page.update()
+        
+        # Диалог подтверждения удаления
+        confirm_dialog = ft.AlertDialog(
+            title=ft.Text("Подтверждение удаления"),
+            content=ft.Text(f"Вы уверены, что хотите удалить заметку? Это действие нельзя отменить."),
+            actions=[
+                ft.TextButton("Отмена", on_click=cancel_delete),
+                ft.TextButton(
+                    "Удалить", 
+                    on_click=confirm_delete,
+                    style=ft.ButtonStyle(color=ft.Colors.RED)
+                ),
+            ]
+        )
+        
+        self.page.open(confirm_dialog)
+        self.page.update()
 
     def edit_point_dialog(self, point: VendingPoint):
         """Диалог редактирования точки"""

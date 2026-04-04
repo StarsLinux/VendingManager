@@ -1,6 +1,6 @@
 [project]
 name = "vending_manager"
-version = "1.0.0"
+version = "1.5.0"
 description = ""
 requires-python = ">=3.9"
 authors = [
@@ -13,5 +13,5 @@ org = "com.vend_solutions"
 product = "VendingManager"
 company = "VendSolutions"
 copyright = "Copyright (C) 2026 by VendSolutions"
-app.icon = "./assets/data/favicon.png"
+app.icon = "./logo1.png"
 app.module = "app"
